@@ -1,6 +1,112 @@
 // myIDirect3DDevice8.h
 #pragma once
 
+typedef int i32;
+typedef float f32;
+typedef short i16;
+typedef unsigned char u8;
+typedef char i8;
+typedef unsigned int ZunColor;
+
+struct EnemyFlags
+{
+    // First byte
+    u8 unk1 : 2;
+    u8 unk2 : 3;
+    u8 unk3 : 1;
+    u8 unk4 : 1;
+    u8 unk5 : 1;
+
+    // Second byte
+    u8 unk6 : 1;
+    u8 unk7 : 1;
+    u8 unk8 : 1;
+    u8 isBoss : 1;
+    u8 unk10 : 1;
+    u8 unk11 : 3;
+
+    // Third byte
+    bool shouldClampPos : 1;
+    u8 unk13 : 1;
+    u8 unk14 : 1;
+    u8 unk15 : 1;
+    u8 unk16 : 1;
+
+    // Rest is padding.
+};
+
+struct AnmVm
+{
+    char dummy[0x110];
+};
+
+struct EnemyEclContext
+{
+    char dummy[0x4C];
+};
+
+struct ZunTimer
+{
+    char dummy[0xC];
+};
+
+struct EnemyBulletShooter
+{
+    char dummy[0x54];
+};
+
+typedef EnemyBulletShooter EnemyLaserShooter;
+
+struct Enemy
+{
+    AnmVm primaryVm;
+    AnmVm vms[8];
+    EnemyEclContext currentContext;
+    EnemyEclContext savedContextStack[8];
+    i32 stackDepth;
+    i32 unk_c40;
+    i32 deathCallbackSub;
+    i32 interrupts[8];
+    i32 runInterrupt;
+    D3DXVECTOR3 position;
+    D3DXVECTOR3 hitboxDimensions;
+    D3DXVECTOR3 axisSpeed;
+    f32 angle;
+    f32 angularVelocity;
+    f32 speed;
+    f32 acceleration;
+    D3DXVECTOR3 shootOffset;
+    D3DXVECTOR3 moveInterp;
+    D3DXVECTOR3 moveInterpStartPos;
+    ZunTimer moveInterpTimer;
+    i32 moveInterpStartTime;
+    f32 bulletRankSpeedLow;
+    f32 bulletRankSpeedHigh;
+    i16 bulletRankAmount1Low;
+    i16 bulletRankAmount1High;
+    i16 bulletRankAmount2Low;
+    i16 bulletRankAmount2High;
+    i32 life;
+    i32 maxLife;
+    i32 score;
+    ZunTimer bossTimer;
+    ZunColor color;
+    EnemyBulletShooter bulletProps;
+    i32 shootInterval;
+    ZunTimer shootIntervalTimer;
+    EnemyLaserShooter laserProps;
+    void *lasers[32]; // This looks like a structure
+    i32 laserStore;
+    u8 deathAnm1;
+    u8 deathAnm2;
+    u8 deathAnm3;
+    i8 itemDrop;
+    u8 bossId;
+    u8 unk_e41;
+    ZunTimer exInsFunc10Timer;
+    EnemyFlags flags;
+};
+
 class myIDirect3DDevice8 : public IDirect3DDevice8   
 {
 public:
@@ -20,7 +126,7 @@ public:
     HRESULT __stdcall GetDisplayMode(D3DDISPLAYMODE* pMode);
     HRESULT __stdcall GetCreationParameters(D3DDEVICE_CREATION_PARAMETERS *pParameters);
     HRESULT __stdcall SetCursorProperties(UINT XHotSpot,UINT YHotSpot,IDirect3DSurface8* pCursorBitmap);
-    void    __stdcall SetCursorPosition(UINT XScreenSpace,UINT YScreenSpace,DWORD Flags);
+    void    __stdcall SetCursorPosition(int XScreenSpace,int YScreenSpace,DWORD Flags);
     BOOL    __stdcall ShowCursor(BOOL bShow);
     HRESULT __stdcall CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS* pPresentationParameters,IDirect3DSwapChain8** pSwapChain);
     HRESULT __stdcall Reset(D3DPRESENT_PARAMETERS* pPresentationParameters);
@@ -110,6 +216,7 @@ public:
 
 private:
 	IDirect3DTexture8* hitbox_texture;
+    IDirect3DTexture8* enemy_texture;
 	unsigned int count;
 	int focused_time;
 	bool draw;

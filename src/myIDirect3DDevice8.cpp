@@ -6,6 +6,7 @@ myIDirect3DDevice8::myIDirect3DDevice8(IDirect3DDevice8* pOriginal)
     m_pIDirect3DDevice8 = pOriginal; // store the pointer to original object
 	draw = false;
 	hitbox_texture = NULL;
+	enemy_texture = NULL;
 	focused_time = 255;
 	count = 0;
 	frame_count = 0;
@@ -49,6 +50,8 @@ ULONG   __stdcall myIDirect3DDevice8::Release(void)
 	// Calling original function now
 	if(hitbox_texture)
 		hitbox_texture->Release();
+	if(enemy_texture)
+		enemy_texture->Release();
 	ULONG count = m_pIDirect3DDevice8->Release();
 		
 	// now, the Original Object has deleted itself, so do we here
@@ -82,7 +85,7 @@ HRESULT __stdcall myIDirect3DDevice8::GetCreationParameters(D3DDEVICE_CREATION_P
 HRESULT __stdcall myIDirect3DDevice8::SetCursorProperties(UINT XHotSpot,UINT YHotSpot,IDirect3DSurface8* pCursorBitmap)  
 {  return (m_pIDirect3DDevice8->SetCursorProperties( XHotSpot, YHotSpot, pCursorBitmap)  );}
 
-void    __stdcall myIDirect3DDevice8::SetCursorPosition(UINT XScreenSpace,UINT YScreenSpace,DWORD Flags)  
+void    __stdcall myIDirect3DDevice8::SetCursorPosition(int XScreenSpace,int YScreenSpace,DWORD Flags)  
 {  m_pIDirect3DDevice8->SetCursorPosition( XScreenSpace, YScreenSpace, Flags);}
 
 BOOL    __stdcall myIDirect3DDevice8::ShowCursor(BOOL bShow)  
@@ -169,74 +172,147 @@ HRESULT __stdcall myIDirect3DDevice8::EndScene(void)
 	if(!hitbox_texture) {
 		D3DXCreateTextureFromFileEx(m_pIDirect3DDevice8, "hitbox.png", 0, 0, 9, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &hitbox_texture);
 	}
+	if (!enemy_texture) {
+		D3DXCreateTextureFromFileEx(m_pIDirect3DDevice8, "enemy.png", 0, 0, 9, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &enemy_texture);
+	}
+
+	const float x_border = 32.0;
+	const float y_border = 16.0;
 	
-	if(draw && hitbox_texture) {
-		bool focused = *((unsigned char*) 0x006CB00B);
-		int  paused  = *((unsigned char*) 0x00481B44);
-		if(paused == 0) {
-			if(focused) { 
-				focused_time = max(0, focused_time - 256 / 32); //How much the indicator has 'phased in'
-			
-				float half_hitbox_size = 32.5f * (1.0f - .9f*(focused_time / 255.0f));
-				float x_border = 32.0;
-				float y_border = 16.0;
+	if(draw) {
+		if (hitbox_texture) {
+			bool focused = *((unsigned char *)0x006CB00B);
+			int  paused = *((unsigned char *)0x00481B44);
+			if (paused == 0) {
+				if (focused) {
+					focused_time = max(0, focused_time - 256 / 32); //How much the indicator has 'phased in'
 
-				float player_sprite_center_x = *((float*)0x006CAA80) + x_border + 1.5f; //The address is actually the top left corner of the hitbox which is 3px wide, so (+1.5px,+1.5px) to get center of hitbox/sprite
-				float player_sprite_center_y = *((float*)0x006CAA84) + y_border + 1.5f;
+					float half_hitbox_size = 32.5f * (1.0f - .9f * (focused_time / 255.0f));
 
-				float x = player_sprite_center_x;
-				float y = player_sprite_center_y;
-				
-				float radians = PI * (count / 128.0f);
-				count++;
+					float player_sprite_center_x = *((float *)0x006CAA80) + x_border + 1.5f; //The address is actually the top left corner of the hitbox which is 3px wide, so (+1.5px,+1.5px) to get center of hitbox/sprite
+					float player_sprite_center_y = *((float *)0x006CAA84) + y_border + 1.5f;
+
+					float x = player_sprite_center_x;
+					float y = player_sprite_center_y;
+
+					float radians = PI * (count / 128.0f);
+					count++;
+
+					DWORD state_token;
+					m_pIDirect3DDevice8->CreateStateBlock(D3DSBT_ALL, &state_token);
+					m_pIDirect3DDevice8->CaptureStateBlock(state_token);
+
+					D3DVIEWPORT8 vp; vp.X = 32; vp.Y = 16; vp.Width = 384; vp.Height = 448; vp.MinZ = 0.0; vp.MaxZ = 1.0;
+
+					lvert verts[4];
+					verts[0].x = x + (-half_hitbox_size * cosf(radians) + -half_hitbox_size * -sinf(radians)); verts[0].y = y + (-half_hitbox_size * sinf(radians) + -half_hitbox_size * cosf(radians)); verts[0].z = 0.0045f; verts[0].q = 1.0f; verts[0].tu = 0.0f; verts[0].tv = 0.0f;
+					verts[1].x = x + (-half_hitbox_size * cosf(radians) + half_hitbox_size * -sinf(radians)); verts[1].y = y + (-half_hitbox_size * sinf(radians) + half_hitbox_size * cosf(radians)); verts[1].z = 0.0045f; verts[1].q = 1.0f; verts[1].tu = 0.0f; verts[1].tv = 1.0f;
+					verts[2].x = x + (half_hitbox_size * cosf(radians) + -half_hitbox_size * -sinf(radians)); verts[2].y = y + (half_hitbox_size * sinf(radians) + -half_hitbox_size * cosf(radians)); verts[2].z = 0.0045f; verts[2].q = 1.0f; verts[2].tu = 1.0f; verts[2].tv = 0.0f;
+					verts[3].x = x + (half_hitbox_size * cosf(radians) + half_hitbox_size * -sinf(radians)); verts[3].y = y + (half_hitbox_size * sinf(radians) + half_hitbox_size * cosf(radians)); verts[3].z = 0.0045f; verts[3].q = 1.0f; verts[3].tu = 1.0f; verts[3].tv = 1.0f;
+					verts[0].diffuse = verts[1].diffuse = verts[2].diffuse = verts[3].diffuse = D3DCOLOR_ARGB(focused_time, 0x00, 0x00, 0x00);
+
+					m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+					m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SUBTRACT);
+					m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+					m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+					m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+					m_pIDirect3DDevice8->SetTexture(0, hitbox_texture);
+
+					m_pIDirect3DDevice8->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+					m_pIDirect3DDevice8->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+					m_pIDirect3DDevice8->SetVertexShader(0x144);
+					m_pIDirect3DDevice8->SetViewport(&vp);
+
+					m_pIDirect3DDevice8->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+					m_pIDirect3DDevice8->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+					m_pIDirect3DDevice8->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+					m_pIDirect3DDevice8->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+					m_pIDirect3DDevice8->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+					m_pIDirect3DDevice8->SetRenderState(D3DRS_TEXTUREFACTOR, 0x00000000);
+
+					m_pIDirect3DDevice8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, 28);
+
+					m_pIDirect3DDevice8->ApplyStateBlock(state_token);
+					m_pIDirect3DDevice8->DeleteStateBlock(state_token);
+
+				}
+				else {
+					focused_time = min(focused_time + 256 / 32, 255);
+				}
+			}
+		}
+
+
+		const float cx_enemy_texture = 48.0f;
+		const float y_boss_indicator = 480 - y_border;
+		if (enemy_texture) {
+			void *boss0 = *(void **)0x5A5F60;
+			bool isBoss = false;
+			if (boss0)
+				isBoss = ((*(DWORD *)((char *)boss0 + 0xE51)) & 8) != 0 // Set when enemy is boss
+					&& ((*(DWORD *)((char *)boss0 + 0xE50)) & 8) == 0;  // Set when boss is dead
+			if (isBoss) {
+				float boss0X = *(float *)((char *)boss0 + 0xC6C);
 
 				DWORD state_token;
 				m_pIDirect3DDevice8->CreateStateBlock(D3DSBT_ALL, &state_token);
-				m_pIDirect3DDevice8->CaptureStateBlock(state_token);	
+				m_pIDirect3DDevice8->CaptureStateBlock(state_token);
 
-				D3DVIEWPORT8 vp; vp.X = 32; vp.Y = 16; vp.Width = 384; vp.Height = 448; vp.MinZ = 0.0; vp.MaxZ = 1.0;
-			
-				lvert verts[4];
-				verts[0].x = x + (-half_hitbox_size * cosf(radians) + -half_hitbox_size * -sinf(radians)); verts[0].y = y + (-half_hitbox_size * sinf(radians) + -half_hitbox_size * cosf(radians)); verts[0].z = 0.0045f; verts[0].q = 1.0f; verts[0].tu = 0.0f; verts[0].tv = 0.0f;
-				verts[1].x = x + (-half_hitbox_size * cosf(radians) +  half_hitbox_size * -sinf(radians)); verts[1].y = y + (-half_hitbox_size * sinf(radians) +  half_hitbox_size * cosf(radians)); verts[1].z = 0.0045f; verts[1].q = 1.0f; verts[1].tu = 0.0f; verts[1].tv = 1.0f;
-				verts[2].x = x + ( half_hitbox_size * cosf(radians) + -half_hitbox_size * -sinf(radians)); verts[2].y = y + ( half_hitbox_size * sinf(radians) + -half_hitbox_size * cosf(radians)); verts[2].z = 0.0045f; verts[2].q = 1.0f; verts[2].tu = 1.0f; verts[2].tv = 0.0f;
-				verts[3].x = x + ( half_hitbox_size * cosf(radians) +  half_hitbox_size * -sinf(radians)); verts[3].y = y + ( half_hitbox_size * sinf(radians) +  half_hitbox_size * cosf(radians)); verts[3].z = 0.0045f; verts[3].q = 1.0f; verts[3].tu = 1.0f; verts[3].tv = 1.0f;
-				verts[0].diffuse = verts[1].diffuse = verts[2].diffuse = verts[3].diffuse = D3DCOLOR_ARGB(focused_time,0x00,0x00,0x00);
-		
+				float x = x_border + boss0X - (cx_enemy_texture / 2.0f);
+				float y = y_boss_indicator;
+
+				D3DVIEWPORT8 vp;
+				vp.X = 32;
+				vp.Y = y_boss_indicator;
+				vp.Width = 384;
+				vp.Height = y_border;
+				vp.MinZ = 0.0;
+				vp.MaxZ = 1.0;
+
+				float playerX = *(float *)0x006CAA80;
+				float distance = min(fabsf(boss0X - playerX), 64);
+				float opacity = min(distance / 64 + .25f, 1.0f);
+
+				D3DCOLOR diffuse = D3DCOLOR_ARGB((UINT)(opacity * 255.0f), 0, 0, 0);
+				lvert vertices[4] = {
+					{ x,                    y,            0.0f, 1.0f, diffuse, 0.0f, 0.0f },
+					{ x + cx_enemy_texture, y,            0.0f, 1.0f, diffuse, 1.0f, 0.0f },
+					{ x,                    y + y_border, 0.0f, 1.0f, diffuse, 0.0f, 1.0f },
+					{ x + cx_enemy_texture, y + y_border, 0.0f, 1.0f, diffuse, 1.0f, 1.0f },
+				};
+
 				m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-				m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SUBTRACT);
+				m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 				m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 				m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 				m_pIDirect3DDevice8->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-				m_pIDirect3DDevice8->SetTexture(0, hitbox_texture);
-				
-				m_pIDirect3DDevice8->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);	
+				m_pIDirect3DDevice8->SetTexture(0, enemy_texture);
+
+				m_pIDirect3DDevice8->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 				m_pIDirect3DDevice8->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-				
-				m_pIDirect3DDevice8->SetVertexShader(0x144);
+
+				m_pIDirect3DDevice8->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 				m_pIDirect3DDevice8->SetViewport(&vp);
-			
+
 				m_pIDirect3DDevice8->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 				m_pIDirect3DDevice8->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 				m_pIDirect3DDevice8->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 				m_pIDirect3DDevice8->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
 				m_pIDirect3DDevice8->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
 				m_pIDirect3DDevice8->SetRenderState(D3DRS_TEXTUREFACTOR, 0x00000000);
-		
-				m_pIDirect3DDevice8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, 28);
-			
+
+				m_pIDirect3DDevice8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(lvert));
+
 				m_pIDirect3DDevice8->ApplyStateBlock(state_token);
 				m_pIDirect3DDevice8->DeleteStateBlock(state_token);
-			
-			}
-			else {
-				focused_time = min(focused_time + 256 / 32, 255);
 			}
 		}
 	}
 
 	draw = false;
-	return (m_pIDirect3DDevice8->EndScene()  );}
+	return (m_pIDirect3DDevice8->EndScene()  );
+}
 
 HRESULT __stdcall myIDirect3DDevice8::Clear(  DWORD Count,CONST D3DRECT* pRects,DWORD Flags,D3DCOLOR Color,float Z,DWORD Stencil)  
 {  return (m_pIDirect3DDevice8->Clear(Count,  pRects, Flags, Color, Z, Stencil)  );}
