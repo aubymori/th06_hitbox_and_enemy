@@ -248,11 +248,12 @@ HRESULT __stdcall myIDirect3DDevice8::EndScene(void)
 		const float y_boss_indicator = 480 - y_border;
 		if (enemy_texture) {
 			void *boss0 = *(void **)0x5A5F60;
-			bool isBoss = false;
+			bool shouldDrawEnemyIndicator = false;
 			if (boss0)
-				isBoss = ((*(DWORD *)((char *)boss0 + 0xE51)) & 8) != 0 // Set when enemy is boss
-					&& ((*(DWORD *)((char *)boss0 + 0xE50)) & 8) == 0;  // Set when boss is dead
-			if (isBoss) {
+				shouldDrawEnemyIndicator
+					= ((*(DWORD *)((char *)boss0 + 0xE51)) & 8) != 0 // Is the enemy a boss?
+					&& *(int *)((char *)boss0 + 0xCE4) > 0;  // Does it have more than 0 health?
+			if (shouldDrawEnemyIndicator) {
 				float boss0X = *(float *)((char *)boss0 + 0xC6C);
 
 				DWORD state_token;
