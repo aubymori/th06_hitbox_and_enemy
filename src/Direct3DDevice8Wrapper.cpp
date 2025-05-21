@@ -8,6 +8,7 @@ CDirect3DDevice8Wrapper::CDirect3DDevice8Wrapper(IDirect3DDevice8 *pOrigD3DDev8)
 	, _iFocusedTime(0)
 	, _fDraw(0)
 	, _uFrameCount(0)
+    , _iLastBossHealth(INT32_MAX)
 {
 }
 
@@ -299,9 +300,13 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
         {
             void *pBoss = *(void **)0x5A5F60;
             bool fDrawEnemy = false;
+            int iBossHealth;
             if (pBoss)
+            {
+                iBossHealth = *(int *)((char *)pBoss + 0xCE4);
                 fDrawEnemy = ((*(DWORD *)((char *)pBoss + 0xE51)) & 8) != 0 // Is the enemy a boss?
-                    && *(int *)((char *)pBoss + 0xCE4) > 0;  // Does it have more than 0 health?
+                    && iBossHealth > 0;  // Does it have more than 0 health?
+            }
 
             if (fDrawEnemy)
             {
@@ -323,6 +328,11 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
                 float flPlayerX = *(float *)0x006CAA80;
                 float flDistance = min(fabsf(flBossX - flPlayerX), 64);
                 float flOpacity = min(flDistance / 64 + .25f, 1.0f);
+
+                if (_iLastBossHealth != INT32_MAX && _iLastBossHealth > iBossHealth)
+                {
+                    flOpacity *= 0.75f;
+                }
 
                 D3DCOLOR clrDiffuse = D3DCOLOR_ARGB((UINT)(flOpacity * 255.0f), 0, 0, 0);
                 VERTEXSTRUCT verts[4] = {
@@ -356,8 +366,14 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
 
                 _pD3DDev8->ApplyStateBlock(dwStateToken);
                 _pD3DDev8->DeleteStateBlock(dwStateToken);
+
+                _iLastBossHealth = iBossHealth;
             }
         }
+    }
+    else
+    {
+        _iLastBossHealth = INT32_MAX;
     }
 
     _fDraw = false;

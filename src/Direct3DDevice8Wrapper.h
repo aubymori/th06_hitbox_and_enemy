@@ -1,5 +1,6 @@
 #pragma once
 #include "mind3d8.h"
+#include <stdint.h>
 #include <math.h>
 
 class CDirect3DDevice8Wrapper : public IDirect3DDevice8
@@ -12,6 +13,7 @@ private:
 	int _iFocusedTime;
 	bool _fDraw;
 	UINT _uFrameCount;
+    int _iLastBossHealth;
 
 public:
 	CDirect3DDevice8Wrapper(IDirect3DDevice8 *pOrigD3DDev8);
