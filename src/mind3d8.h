@@ -1162,19 +1162,8 @@ DECLARE_INTERFACE_IID_(IDirect3DDevice8, IUnknown, "7385e5df-8fe8-41d5-86b6-d7b4
  * Direct 3D v8 functions
  */
 
-EXTERN_C HRESULT WINAPI D3DXCreateTextureFromFileExW(
+EXTERN_C HRESULT WINAPI D3DXCreateTextureFromFileW(
     IDirect3DDevice8 *pDevice,
     LPCWSTR               pSrcFile,
-    UINT                  Width,
-    UINT                  Height,
-    UINT                  MipLevels,
-    DWORD                 Usage,
-    D3DFORMAT             Format,
-    D3DPOOL               Pool,
-    DWORD                 Filter,
-    DWORD                 MipFilter,
-    D3DCOLOR              ColorKey,
-    D3DXIMAGE_INFO *pSrcInfo,
-    PALETTEENTRY *pPalette,
     IDirect3DTexture8 **ppTexture
 );

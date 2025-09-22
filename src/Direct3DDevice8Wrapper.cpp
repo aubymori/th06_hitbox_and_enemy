@@ -205,42 +205,45 @@ HRESULT CDirect3DDevice8Wrapper::BeginScene()
 
 HRESULT CDirect3DDevice8Wrapper::EndScene()
 {
-    if (!_pHitboxTexture)
-        D3DXCreateTextureFromFileExW(_pD3DDev8, L"hitbox.png", 0, 0, 9, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, nullptr, nullptr, &_pHitboxTexture);
-    if (!_pEnemyTexture)
-        D3DXCreateTextureFromFileExW(_pD3DDev8, L"enemy.png", 0, 0, 9, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT, 0, nullptr, nullptr, &_pEnemyTexture);
-
-    constexpr float kBorderX = 32.0;
-    constexpr float kBorderY = 16.0;
-    constexpr float PI = 3.14159f;
-
-    if (_fDraw)
+    HRESULT hr = _pD3DDev8->EndScene();
+    if (SUCCEEDED(hr))
     {
-        if (_pHitboxTexture)
+        if (!_pHitboxTexture)
+            D3DXCreateTextureFromFileW(_pD3DDev8, L"hitbox.png", &_pHitboxTexture);
+        if (!_pEnemyTexture)
+            D3DXCreateTextureFromFileW(_pD3DDev8, L"enemy.png", &_pEnemyTexture);
+
+        constexpr float kBorderX = 32.0;
+        constexpr float kBorderY = 16.0;
+        constexpr float PI = 3.14159f;
+
+        if (_fDraw)
         {
-            bool fFocused = *((bool *)0x006CB00B);
-            bool fPaused = *((bool *)0x00481B44);
-            if (!fPaused)
+            if (_pHitboxTexture)
             {
-                if (fFocused)
+                bool fFocused = *((bool *)0x006CB00B);
+                bool fPaused = *((bool *)0x00481B44);
+                if (!fPaused)
                 {
-                    _iFocusedTime = max(0, _iFocusedTime - (256 / 32)); //How much the indicator has 'phased in'
+                    if (fFocused)
+                    {
+                        _iFocusedTime = max(0, _iFocusedTime - (256 / 32)); //How much the indicator has 'phased in'
 
-                    const float flHalfHitbox = 32.5f * (1.0f - .9f * (_iFocusedTime / 255.0f));
-                    const float flPlayerX = *((float *)0x006CAA80) + kBorderX + 1.5f;
-                    const float flPlayerY = *((float *)0x006CAA84) + kBorderY + 1.5f;
-                    const float flRadians = PI * (_uCount / 128.0f);
-                    _uCount++;
+                        const float flHalfHitbox = 32.5f * (1.0f - .9f * (_iFocusedTime / 255.0f));
+                        const float flPlayerX = *((float *)0x006CAA80) + kBorderX + 1.5f;
+                        const float flPlayerY = *((float *)0x006CAA84) + kBorderY + 1.5f;
+                        const float flRadians = PI * (_uCount / 128.0f);
+                        _uCount++;
 
-                    DWORD dwStateToken;
-                    _pD3DDev8->CreateStateBlock(D3DSBT_ALL, &dwStateToken);
-                    _pD3DDev8->CaptureStateBlock(dwStateToken);
+                        DWORD dwStateToken;
+                        _pD3DDev8->CreateStateBlock(D3DSBT_ALL, &dwStateToken);
+                        _pD3DDev8->CaptureStateBlock(dwStateToken);
 
-                    D3DVIEWPORT8 vp = {
-                        32, 16,   // X, Y
-                        384, 448, // Width, Height
-                        0.0, 1.0  // MinZ, MaxZ
-                    };
+                        D3DVIEWPORT8 vp = {
+                            32, 16,   // X, Y
+                            384, 448, // Width, Height
+                            0.0, 1.0  // MinZ, MaxZ
+                        };
 
 #define VERTEX(sign1, sign2, tu, tv) \
 { \
@@ -253,26 +256,106 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
     tv \
 }
 
-                    VERTEXSTRUCT verts[4] = {
-                        VERTEX(-, -, 0.0f, 0.0f),
-                        VERTEX(-, +, 0.0f, 1.0f),
-                        VERTEX(+, -, 1.0f, 0.0f),
-                        VERTEX(+, +, 1.0f, 1.0f)
-                    };
+                        VERTEXSTRUCT verts[4] = {
+                            VERTEX(-, -, 0.0f, 0.0f),
+                            VERTEX(-, +, 0.0f, 1.0f),
+                            VERTEX(+, -, 1.0f, 0.0f),
+                            VERTEX(+, +, 1.0f, 1.0f)
+                        };
 
 #undef VERTEX
 
+                        _pD3DDev8->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+                        _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SUBTRACT);
+                        _pD3DDev8->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+                        _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+                        _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+                        _pD3DDev8->SetTexture(0, _pHitboxTexture);
+
+                        _pD3DDev8->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+                        _pD3DDev8->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+
+                        _pD3DDev8->SetVertexShader(0x144);
+                        _pD3DDev8->SetViewport(&vp);
+
+                        _pD3DDev8->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+                        _pD3DDev8->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+                        _pD3DDev8->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+                        _pD3DDev8->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+                        _pD3DDev8->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+                        _pD3DDev8->SetRenderState(D3DRS_TEXTUREFACTOR, 0x00000000);
+
+                        _pD3DDev8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, sizeof(VERTEXSTRUCT));
+
+                        _pD3DDev8->ApplyStateBlock(dwStateToken);
+                        _pD3DDev8->DeleteStateBlock(dwStateToken);
+                    }
+                    else
+                    {
+                        _iFocusedTime = min(_iFocusedTime + (256 / 32), 255);
+                    }
+                }
+            }
+
+            const float kEnemyTextureWidth = 48.0f;
+            const float kBossIndicatorY = 480 - kBorderY;
+            if (_pEnemyTexture)
+            {
+                void *pBoss = *(void **)0x5A5F60;
+                bool fDrawEnemy = false;
+                int iBossHealth;
+                if (pBoss)
+                {
+                    iBossHealth = *(int *)((char *)pBoss + 0xCE4);
+                    fDrawEnemy = ((*(DWORD *)((char *)pBoss + 0xE51)) & 8) != 0 // Is the enemy a boss?
+                        && iBossHealth > 0;  // Does it have more than 0 health?
+                }
+
+                if (fDrawEnemy)
+                {
+                    float flBossX = *(float *)((char *)pBoss + 0xC6C);
+
+                    DWORD dwStateToken;
+                    _pD3DDev8->CreateStateBlock(D3DSBT_ALL, &dwStateToken);
+                    _pD3DDev8->CaptureStateBlock(dwStateToken);
+
+                    float X = kBorderX + flBossX - (kEnemyTextureWidth / 2.0f);
+                    float Y = kBossIndicatorY;
+
+                    D3DVIEWPORT8 vp = {
+                        32, Y,         // X, Y
+                        384, kBorderY, // Width, Height
+                        0.0, 1.0       // MinZ, MaxZ
+                    };
+
+                    float flPlayerX = *(float *)0x006CAA80;
+                    float flDistance = min(fabsf(flBossX - flPlayerX), 64);
+                    float flOpacity = min(flDistance / 64 + .25f, 1.0f);
+
+                    if (_iLastBossHealth != INT32_MAX && _iLastBossHealth > iBossHealth)
+                    {
+                        flOpacity *= 0.75f;
+                    }
+
+                    D3DCOLOR clrDiffuse = D3DCOLOR_ARGB((UINT)(flOpacity * 255.0f), 0, 0, 0);
+                    VERTEXSTRUCT verts[4] = {
+                        { X,                      Y,            0.0f, 1.0f, clrDiffuse, 0.0f, 0.0f },
+                        { X + kEnemyTextureWidth, Y,            0.0f, 1.0f, clrDiffuse, 1.0f, 0.0f },
+                        { X,                      Y + kBorderY, 0.0f, 1.0f, clrDiffuse, 0.0f, 1.0f },
+                        { X + kEnemyTextureWidth, Y + kBorderY, 0.0f, 1.0f, clrDiffuse, 1.0f, 1.0f }
+                    };
+
                     _pD3DDev8->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-                    _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SUBTRACT);
+                    _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
                     _pD3DDev8->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
                     _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
                     _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-                    _pD3DDev8->SetTexture(0, _pHitboxTexture);
+                    _pD3DDev8->SetTexture(0, _pEnemyTexture);
 
                     _pD3DDev8->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
                     _pD3DDev8->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
-                    _pD3DDev8->SetVertexShader(0x144);
+                    _pD3DDev8->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
                     _pD3DDev8->SetViewport(&vp);
 
                     _pD3DDev8->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -282,102 +365,23 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
                     _pD3DDev8->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
                     _pD3DDev8->SetRenderState(D3DRS_TEXTUREFACTOR, 0x00000000);
 
-                    _pD3DDev8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, &verts, sizeof(VERTEXSTRUCT));
+                    _pD3DDev8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, verts, sizeof(VERTEXSTRUCT));
 
                     _pD3DDev8->ApplyStateBlock(dwStateToken);
                     _pD3DDev8->DeleteStateBlock(dwStateToken);
-                }
-                else
-                {
-                    _iFocusedTime = min(_iFocusedTime + (256 / 32), 255);
+
+                    _iLastBossHealth = iBossHealth;
                 }
             }
-        }
 
-        const float kEnemyTextureWidth = 48.0f;
-        const float kBossIndicatorY = 480 - kBorderY;
-        if (_pEnemyTexture)
+            _fDraw = false;
+        }
+        else
         {
-            void *pBoss = *(void **)0x5A5F60;
-            bool fDrawEnemy = false;
-            int iBossHealth;
-            if (pBoss)
-            {
-                iBossHealth = *(int *)((char *)pBoss + 0xCE4);
-                fDrawEnemy = ((*(DWORD *)((char *)pBoss + 0xE51)) & 8) != 0 // Is the enemy a boss?
-                    && iBossHealth > 0;  // Does it have more than 0 health?
-            }
-
-            if (fDrawEnemy)
-            {
-                float flBossX = *(float *)((char *)pBoss + 0xC6C);
-
-                DWORD dwStateToken;
-                _pD3DDev8->CreateStateBlock(D3DSBT_ALL, &dwStateToken);
-                _pD3DDev8->CaptureStateBlock(dwStateToken);
-
-                float X = kBorderX + flBossX - (kEnemyTextureWidth / 2.0f);
-                float Y = kBossIndicatorY;
-
-                D3DVIEWPORT8 vp = {
-                    32, Y,         // X, Y
-                    384, kBorderY, // Width, Height
-                    0.0, 1.0       // MinZ, MaxZ
-                };
-
-                float flPlayerX = *(float *)0x006CAA80;
-                float flDistance = min(fabsf(flBossX - flPlayerX), 64);
-                float flOpacity = min(flDistance / 64 + .25f, 1.0f);
-
-                if (_iLastBossHealth != INT32_MAX && _iLastBossHealth > iBossHealth)
-                {
-                    flOpacity *= 0.75f;
-                }
-
-                D3DCOLOR clrDiffuse = D3DCOLOR_ARGB((UINT)(flOpacity * 255.0f), 0, 0, 0);
-                VERTEXSTRUCT verts[4] = {
-                    { X,                      Y,            0.0f, 1.0f, clrDiffuse, 0.0f, 0.0f },
-                    { X + kEnemyTextureWidth, Y,            0.0f, 1.0f, clrDiffuse, 1.0f, 0.0f },
-                    { X,                      Y + kBorderY, 0.0f, 1.0f, clrDiffuse, 0.0f, 1.0f },
-                    { X + kEnemyTextureWidth, Y + kBorderY, 0.0f, 1.0f, clrDiffuse, 1.0f, 1.0f }
-                };
-
-                _pD3DDev8->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-                _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-                _pD3DDev8->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-                _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-                _pD3DDev8->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-                _pD3DDev8->SetTexture(0, _pEnemyTexture);
-
-                _pD3DDev8->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-                _pD3DDev8->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
-                _pD3DDev8->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-                _pD3DDev8->SetViewport(&vp);
-
-                _pD3DDev8->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-                _pD3DDev8->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-                _pD3DDev8->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-                _pD3DDev8->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-                _pD3DDev8->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-                _pD3DDev8->SetRenderState(D3DRS_TEXTUREFACTOR, 0x00000000);
-
-                _pD3DDev8->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, verts, sizeof(VERTEXSTRUCT));
-
-                _pD3DDev8->ApplyStateBlock(dwStateToken);
-                _pD3DDev8->DeleteStateBlock(dwStateToken);
-
-                _iLastBossHealth = iBossHealth;
-            }
+            _iLastBossHealth = INT32_MAX;
         }
     }
-    else
-    {
-        _iLastBossHealth = INT32_MAX;
-    }
-
-    _fDraw = false;
-    return _pD3DDev8->EndScene();
+    return hr;
 }
 
 HRESULT CDirect3DDevice8Wrapper::Clear(DWORD rect_count, const D3DRECT *rects, DWORD flags, D3DCOLOR color, float z, DWORD stencil)
@@ -562,14 +566,15 @@ HRESULT CDirect3DDevice8Wrapper::DrawIndexedPrimitive(D3DPRIMITIVETYPE Primitive
 
 HRESULT CDirect3DDevice8Wrapper::DrawPrimitiveUP(D3DPRIMITIVETYPE primitive_type, UINT primitive_count, const void *data, UINT stride)
 {
-    if (!_fDraw)
+    HRESULT hr = _pD3DDev8->DrawPrimitiveUP(primitive_type, primitive_count, data, stride);
+    if (SUCCEEDED(hr) && !_fDraw)
     {
         D3DVIEWPORT8 vp;
         _pD3DDev8->GetViewport(&vp);
         if (vp.X == 32 && vp.Y == 16)
             _fDraw = true;
     }
-    return _pD3DDev8->DrawPrimitiveUP(primitive_type, primitive_count, data, stride);
+    return hr;
 }
 
 HRESULT CDirect3DDevice8Wrapper::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE primitive_type, UINT min_vertex_idx, UINT vertex_count, UINT primitive_count, const void *index_data, D3DFORMAT index_format, const void *data, UINT stride)
