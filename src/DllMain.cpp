@@ -1,5 +1,4 @@
 #include <windows.h>
-#include <pathcch.h>
 #include "mind3d8.h"
 #include "Direct3D8Wrapper.h"
 
@@ -35,8 +34,7 @@ extern "C" __declspec(dllexport) IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVers
 	if (!g_hinstD3D8)
 	{
 		WCHAR szDllPath[MAX_PATH];
-		GetSystemDirectoryW(szDllPath, MAX_PATH);
-		PathCchAppend(szDllPath, MAX_PATH, L"d3d8.dll");
+		ExpandEnvironmentStringsW(L"%WINDIR%\\system32\\d3d8.dll", szDllPath, ARRAYSIZE(szDllPath));
 
 		g_hinstD3D8 = LoadLibraryW(szDllPath);
 		if (!g_hinstD3D8)
