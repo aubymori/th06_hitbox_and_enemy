@@ -8,7 +8,6 @@ CDirect3DDevice8Wrapper::CDirect3DDevice8Wrapper(IDirect3DDevice8 *pOrigD3DDev8)
 	, _iFocusedTime(0)
 	, _fDraw(0)
     , _fUserBackBufferOption((*(int *)0x6C6E60) & 8)
-	, _uFrameCount(0)
     , _iLastBossHealth(INT32_MAX)
 {
 }

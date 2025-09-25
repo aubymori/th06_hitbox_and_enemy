@@ -13,7 +13,6 @@ private:
 	int _iFocusedTime;
 	bool _fDraw;
     bool _fUserBackBufferOption;
-	UINT _uFrameCount;
     int _iLastBossHealth;
 
 public:
