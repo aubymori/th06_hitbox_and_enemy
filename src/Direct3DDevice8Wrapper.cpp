@@ -7,6 +7,7 @@ CDirect3DDevice8Wrapper::CDirect3DDevice8Wrapper(IDirect3DDevice8 *pOrigD3DDev8)
 	, _uCount(0)
 	, _iFocusedTime(0)
 	, _fDraw(0)
+    , _fUserBackBufferOption((*(int *)0x6C6E60) & 8)
 	, _uFrameCount(0)
     , _iLastBossHealth(INT32_MAX)
 {
@@ -217,8 +218,13 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
         constexpr float kBorderY = 16.0;
         constexpr float PI = 3.14159f;
 
+        *(bool *)0x006C6EB0 = false;
+
         if (_fDraw)
         {
+            if (!_fUserBackBufferOption)
+                *(int *)0x6C6E60 &= ~8;
+
             if (_pHitboxTexture)
             {
                 bool fFocused = *((bool *)0x006CB00B);
@@ -227,7 +233,7 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
                 {
                     if (fFocused)
                     {
-                        _iFocusedTime = max(0, _iFocusedTime - (256 / 32)); //How much the indicator has 'phased in'
+                        _iFocusedTime = max(0, _iFocusedTime - (256 / 32)); // How much the indicator has "phased in"
 
                         const float flHalfHitbox = 32.5f * (1.0f - .9f * (_iFocusedTime / 255.0f));
                         const float flPlayerX = *((float *)0x006CAA80) + kBorderX + 1.5f;
@@ -313,6 +319,12 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
 
                 if (fDrawEnemy)
                 {
+                    // We explicitly set the "clear back buffer" option flag when we need to draw the enemy
+                    // indicator. This keeps it from not clearing properly without vpatch. We set this flag
+                    // inside this function, the game draws the next frame after returning, and then we unset
+                    // it in the next call, if the user has the option disabled.
+                    *(int *)0x6C6E60 |= 8;
+
                     float flBossX = *(float *)((char *)pBoss + 0xC6C);
 
                     DWORD dwStateToken;
