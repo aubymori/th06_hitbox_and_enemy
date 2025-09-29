@@ -7,7 +7,6 @@ CDirect3DDevice8Wrapper::CDirect3DDevice8Wrapper(IDirect3DDevice8 *pOrigD3DDev8)
 	, _uCount(0)
 	, _iFocusedTime(0)
 	, _fDraw(0)
-    , _fUserBackBufferOption((*(int *)0x6C6E60) & 8)
     , _iLastBossHealth(INT32_MAX)
 {
 }
@@ -221,9 +220,6 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
 
         if (_fDraw)
         {
-            if (!_fUserBackBufferOption)
-                *(int *)0x6C6E60 &= ~8;
-
             if (_pHitboxTexture)
             {
                 bool fFocused = *((bool *)0x006CB00B);
@@ -318,12 +314,6 @@ HRESULT CDirect3DDevice8Wrapper::EndScene()
 
                 if (fDrawEnemy)
                 {
-                    // We explicitly set the "clear back buffer" option flag when we need to draw the enemy
-                    // indicator. This keeps it from not clearing properly without vpatch. We set this flag
-                    // inside this function, the game draws the next frame after returning, and then we unset
-                    // it in the next call, if the user has the option disabled.
-                    *(int *)0x6C6E60 |= 8;
-
                     float flBossX = *(float *)((char *)pBoss + 0xC6C);
 
                     DWORD dwStateToken;

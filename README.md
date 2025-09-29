@@ -5,3 +5,5 @@ This patch makes it so that  東方紅魔郷～ the Embodiment of Scarlet Devil 
 
 ## Installation
 To install this patch, simply extract the ZIP file included in [the current release](https://github.com/aubymori/th06_hitbox_and_enemy/releases/latest) and drag the files `d3d8.dll`, `hitbox.png`, and `enemy.png` to your game folder.
+
+You will need vpatch for it to work properly.
